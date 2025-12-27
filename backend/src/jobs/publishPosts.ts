@@ -77,7 +77,7 @@ export async function publishScheduledPosts() {
 
         console.log(`✓ Published post ${post.id} to Instagram`);
       } catch (err: any) {
-        console.error(`✗ Failed to publish post ${post.id}:`, err.message);
+        console.error(`✗ Failed to publish post ${post.id}:`, err);
 
         // Сохраняем ошибку
         await supabase
