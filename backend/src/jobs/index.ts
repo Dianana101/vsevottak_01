@@ -1,10 +1,10 @@
 import cron from 'node-cron';
-import { publishScheduledPosts } from './publishPosts';
+import { startPublishingJob } from './publishPosts';
 import { refreshExpiringTokens } from './refreshTokens';
 
 export function startCronJobs() {
   // Проверка и публикация постов каждые 5 минут
-  cron.schedule('*/1 * * * *', publishScheduledPosts);
+  cron.schedule('*/1 * * * *', startPublishingJob);
   console.log('📅 Cron: Publishing posts every 1 minutes');
 
   // Обновление токенов каждый день в 3:00 AM

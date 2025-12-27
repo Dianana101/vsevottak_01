@@ -1,96 +1,173 @@
-// backend/src/jobs/publishPosts.ts
-import { supabase } from '../lib/supabase';
+import cron from 'node-cron';
 import axios from 'axios';
-import { generateImage } from '../services/imageGenerator';
-import { uploadImageToStorage } from '../services/uploadImage';
+import { supabase } from '../lib/supabase';
+import { logAuthEvent } from '../utils/authLogger';
 
-export async function publishScheduledPosts() {
+interface Post {
+  id: string;
+  schedule_id: string;
+  image_url: string;
+  caption: string;
+  scheduled_at: string;
+  status: string;
+  schedules: {
+    user_id: string;
+    users: {
+      ig_user_id: string;
+      ig_access_token: string;
+    };
+  };
+}
+
+async function publishPost(post: Post) {
+  const { ig_user_id, ig_access_token } = post.schedules.users;
+  const userId = post.schedules.user_id;
+
   try {
-    const now = new Date().toISOString();
+    // Логируем начало публикации
+    await logAuthEvent(userId, 'instagram_post_start', {
+      action: 'publish_post',
+      post_id: post.id,
+      ig_user_id
+    });
 
-    // Находим все посты, которые должны быть опубликованы
-    const { data: posts, error } = await supabase
+    // 1. Создаем медиа-контейнер
+    const containerResponse = await axios.post(
+      `https://graph.facebook.com/v24.0/${ig_user_id}/media`,
+      {
+        image_url: post.image_url,
+        caption: post.caption,
+        access_token: ig_access_token
+      }
+    );
+
+    const creationId = containerResponse.data.id;
+
+    // Ждем обработки
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    // 2. Публикуем контент
+    const publishResponse = await axios.post(
+      `https://graph.facebook.com/v24.0/${ig_user_id}/media_publish`,
+      {
+        creation_id: creationId,
+        access_token: ig_access_token
+      }
+    );
+
+    const mediaId = publishResponse.data.id;
+
+    // Обновляем статус поста
+    await supabase
       .from('posts')
-      .select('*, users(ig_user_id, ig_access_token)')
-      .eq('status', 'pending')
-      .lte('scheduled_at', now);
+      .update({
+        status: 'published',
+        instagram_media_id: mediaId
+      })
+      .eq('id', post.id);
 
-    console.log("Posts to publish:", posts);
+    // Логируем успешную публикацию
+    await logAuthEvent(userId, 'instagram_post_success', {
+      action: 'publish_post',
+      status: 'success',
+      post_id: post.id,
+      instagram_media_id: mediaId,
+      ig_user_id
+    });
 
-    if (error) throw error;
+    console.log(`✅ Post ${post.id} published successfully: ${mediaId}`);
+  } catch (error: any) {
+    console.error(`❌ Failed to publish post ${post.id}:`, error.response?.data || error.message);
 
-    for (const post of posts || []) {
-      try {
-        const user = post.users;
+    // Логируем ошибку
+    await logAuthEvent(userId, 'instagram_post_error', {
+      action: 'publish_post',
+      status: 'error',
+      post_id: post.id,
+      error: error.response?.data?.error?.message || error.message,
+      error_code: error.response?.data?.error?.code,
+      ig_user_id
+    });
 
-        if (!user || !user.ig_access_token || !user.ig_user_id) {
-          throw new Error('User Instagram credentials not found');
+    // Увеличиваем счетчик попыток
+    const { data: currentPost } = await supabase
+      .from('posts')
+      .select('retry_count')
+      .eq('id', post.id)
+      .single();
+
+    const retryCount = (currentPost?.retry_count || 0) + 1;
+
+    await supabase
+      .from('posts')
+      .update({
+        status: retryCount >= 3 ? 'failed' : 'pending',
+        retry_count: retryCount
+      })
+      .eq('id', post.id);
+  }
+}
+
+export function startPublishingJob() {
+  // Каждую минуту проверяем посты для публикации
+  cron.schedule('* * * * *', async () => {
+    try {
+      const now = new Date().toISOString();
+
+      // Получаем посты, готовые к публикации
+      const { data: posts, error } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          schedules!inner (
+            user_id,
+            users!inner (
+              ig_user_id,
+              ig_access_token,
+              ig_token_expires_at
+            )
+          )
+        `)
+        .eq('status', 'pending')
+        .lte('scheduled_at', now)
+        .lt('retry_count', 3);
+
+      if (error) {
+        console.error('Error fetching posts:', error);
+        return;
+      }
+
+      if (!posts || posts.length === 0) {
+        return;
+      }
+
+      console.log(`📤 Found ${posts.length} posts to publish`);
+
+      // Проверяем токены перед публикацией
+      for (const post of posts) {
+        const user = post.schedules.users;
+        const tokenExpires = new Date(user.ig_token_expires_at);
+        const now = new Date();
+
+        if (tokenExpires <= now) {
+          // Токен истек
+          await logAuthEvent(post.schedules.user_id, 'instagram_token_expired', {
+            action: 'check_token',
+            status: 'error',
+            error: 'Access token expired',
+            token_expires: user.ig_token_expires_at
+          });
+
+          console.error(`❌ Token expired for user ${post.schedules.user_id}`);
+          continue;
         }
 
-        // 1. Генерируем изображение
-        const imageBuffer = await generateImage(post.topic, post.bg_color);
-
-        // 2. ✅ Загружаем в Supabase Storage и получаем URL
-        const fileName = `${post.id}.png`;
-        const publicUrl = await uploadImageToStorage(imageBuffer, fileName);
-
-        console.log(`✓ Image uploaded: ${publicUrl}`);
-
-        // 3. Создаем container в Instagram
-        const containerResponse = await axios.post(
-          `https://graph.facebook.com/v24.0/${user.ig_user_id}/media`,
-          {
-            image_url: publicUrl,  // ✅ Публичный HTTPS URL!
-            caption: post.caption || post.topic,
-            access_token: user.ig_access_token,
-          }
-        );
-
-        const creationId = containerResponse.data.id;
-
-        // 4. Ждем обработки
-        await new Promise(resolve => setTimeout(resolve, 15000));
-
-        // 5. Публикуем
-        const publishResponse = await axios.post(
-          `https://graph.facebook.com/v24.0/${user.ig_user_id}/media_publish`,
-          {
-            creation_id: creationId,
-            access_token: user.ig_access_token,
-          }
-        );
-
-        const mediaId = publishResponse.data.id;
-        console.log(`try to Published post ${post.id} to Instagram`, publicUrl);
-
-        // 6. ✅ Обновляем статус в БД с URL (а не Buffer!)
-        await supabase
-          .from('posts')
-          .update({
-            status: 'published',
-            published_at: new Date().toISOString(),
-            instagram_media_id: mediaId,
-            instagram_container_id: creationId,
-            image_url: publicUrl,  // ✅ Сохраняем URL!
-          })
-          .eq('id', post.id);
-
-        console.log(`✓ Published post ${post.id} to Instagram`);
-      } catch (err: any) {
-        console.error(`✗ Failed to publish post ${post.id}:`, err);
-
-        // Сохраняем ошибку
-        await supabase
-          .from('posts')
-          .update({
-            status: 'failed',
-            error_message: err.message,
-            retry_count: (post.retry_count || 0) + 1,
-          })
-          .eq('id', post.id);
+        await publishPost(post as Post);
       }
+    } catch (error) {
+      console.error('Error in publishing job:', error);
     }
-  } catch (error) {
-    console.error('Publish posts job failed:', error);
-  }
+  });
+
+  console.log('📅 Publishing job started');
 }

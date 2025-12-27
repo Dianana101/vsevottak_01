@@ -1,110 +1,202 @@
 import express from 'express';
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
+import { logAuthEvent } from '../utils/authLogger';
 
 const router = express.Router();
 
-const INSTAGRAM_APP_ID = process.env.INSTAGRAM_APP_ID!;
-const INSTAGRAM_APP_SECRET = process.env.INSTAGRAM_APP_SECRET!;
-const REDIRECT_URI = process.env.INSTAGRAM_REDIRECT_URI!;
-const FRONTEND_URL = process.env.FRONTEND_URL!;
+const INSTAGRAM_APP_ID = process.env.INSTAGRAM_APP_ID;
+const INSTAGRAM_APP_SECRET = process.env.INSTAGRAM_APP_SECRET;
+const REDIRECT_URI = process.env.REDIRECT_URI || 'http://localhost:3000/auth/callback';
 
-// Инициация OAuth
-router.get('/instagram/login', (req, res) => {
-  const userId = req.query.user_id;
-  
-  const scopes = [
-    'pages_show_list',
-    'pages_read_engagement',
-    'instagram_basic',
-    'instagram_content_publish',
-    'business_management'
-  ].join(',');
-
-  const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?` +
-    `client_id=${INSTAGRAM_APP_ID}&` +
-    `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
-    `scope=${scopes}&` +
-    `state=${userId}&` +
-    `response_type=code`;
-
+// Начало OAuth flow
+router.get('/instagram', (req, res) => {
+  const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${INSTAGRAM_APP_ID}&redirect_uri=${REDIRECT_URI}&scope=instagram_basic,instagram_content_publish&response_type=code`;
   res.redirect(authUrl);
 });
 
-// Обработка callback
-router.get('/instagram/callback', async (req, res) => {
+// Callback после авторизации
+router.get('/callback', async (req, res) => {
+  const { code } = req.query;
+
+  if (!code) {
+    return res.status(400).json({ error: 'Authorization code not provided' });
+  }
+
   try {
-    const { code, state: userId } = req.query;
+    // Обмен кода на короткий токен
+    const tokenResponse = await axios.post(
+      'https://api.instagram.com/oauth/access_token',
+      new URLSearchParams({
+        client_id: INSTAGRAM_APP_ID!,
+        client_secret: INSTAGRAM_APP_SECRET!,
+        grant_type: 'authorization_code',
+        redirect_uri: REDIRECT_URI,
+        code: code as string
+      })
+    );
 
-    if (!code) {
-      return res.redirect(`${FRONTEND_URL}/settings?auth=failed`);
+    const shortLivedToken = tokenResponse.data.access_token;
+    const igUserId = tokenResponse.data.user_id;
+
+    // Обмен на долгосрочный токен
+    const longLivedResponse = await axios.get(
+      `https://graph.instagram.com/access_token`,
+      {
+        params: {
+          grant_type: 'ig_exchange_token',
+          client_secret: INSTAGRAM_APP_SECRET,
+          access_token: shortLivedToken
+        }
+      }
+    );
+
+    const longLivedToken = longLivedResponse.data.access_token;
+    const expiresIn = longLivedResponse.data.expires_in; // 60 дней в секундах
+    const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+
+    // Сохраняем или обновляем пользователя
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('ig_user_id', igUserId)
+      .single();
+
+    let userId: string;
+
+    if (existingUser) {
+      // Обновляем токен
+      await supabase
+        .from('users')
+        .update({
+          ig_access_token: longLivedToken,
+          ig_token_expires_at: expiresAt
+        })
+        .eq('ig_user_id', igUserId);
+
+      userId = existingUser.id;
+
+      // Логируем обновление токена
+      await logAuthEvent(userId, 'instagram_token_refresh', {
+        action: 'oauth_callback',
+        status: 'success',
+        token_expires: expiresAt,
+        instagram_user_id: igUserId
+      });
+    } else {
+      // Создаем нового пользователя
+      const { data: newUser } = await supabase
+        .from('users')
+        .insert({
+          ig_user_id: igUserId,
+          ig_access_token: longLivedToken,
+          ig_token_expires_at: expiresAt
+        })
+        .select()
+        .single();
+
+      userId = newUser!.id;
+
+      // Логируем первую авторизацию
+      await logAuthEvent(userId, 'instagram_auth_first', {
+        action: 'oauth_callback',
+        status: 'success',
+        token_expires: expiresAt,
+        instagram_user_id: igUserId
+      });
     }
 
-    // 1. Обмен code на short-lived token
-    const tokenResponse = await axios.get(
-      `https://graph.facebook.com/v24.0/oauth/access_token`,
-      {
-        params: {
-          client_id: INSTAGRAM_APP_ID,
-          client_secret: INSTAGRAM_APP_SECRET,
-          redirect_uri: REDIRECT_URI,
-          code: code,
-        },
-      }
-    );
+    res.json({
+      message: 'Authorization successful',
+      user_id: userId,
+      ig_user_id: igUserId,
+      token_expires_at: expiresAt
+    });
+  } catch (error: any) {
+    console.error('OAuth error:', error.response?.data || error.message);
 
-    const shortToken = tokenResponse.data.access_token;
+    // Логируем ошибку OAuth (без user_id, т.к. не авторизован)
+    await logAuthEvent(null, 'instagram_auth_error', {
+      action: 'oauth_callback',
+      status: 'error',
+      error: error.response?.data?.error_message || error.message
+    });
 
-    // 2. Обмен на long-lived token
-    const longTokenResponse = await axios.get(
-      `https://graph.facebook.com/v24.0/oauth/access_token`,
-      {
-        params: {
-          grant_type: 'fb_exchange_token',
-          client_id: INSTAGRAM_APP_ID,
-          client_secret: INSTAGRAM_APP_SECRET,
-          fb_exchange_token: shortToken,
-        },
-      }
-    );
+    res.status(500).json({ error: 'Authorization failed' });
+  }
+});
 
-    const longToken = longTokenResponse.data.access_token;
-    const expiresIn = longTokenResponse.data.expires_in;
+// Ручное обновление токена (для долгосрочных токенов)
+router.post('/refresh-token', async (req, res) => {
+  const { user_id } = req.body;
 
-    // 3. Получаем Instagram Business Account ID
-    const pagesResponse = await axios.get(
-      `https://graph.facebook.com/v24.0/me/accounts`,
-      {
-        params: {
-          fields: 'instagram_business_account',
-          access_token: longToken,
-        },
-      }
-    );
+  if (!user_id) {
+    return res.status(400).json({ error: 'user_id is required' });
+  }
 
-    const page = pagesResponse.data.data[0];
-    const igUserId = page?.instagram_business_account?.id;
+  try {
+    // Получаем текущий токен
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('ig_access_token, ig_user_id')
+      .eq('id', user_id)
+      .single();
 
-    if (!igUserId) {
-      return res.redirect(`${FRONTEND_URL}/settings?auth=no_instagram`);
+    if (userError || !user) {
+      await logAuthEvent(user_id, 'token_refresh_error', {
+        action: 'refresh_token',
+        status: 'error',
+        error: 'User not found'
+      });
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    // 4. Сохраняем в Supabase
-    const expiresAt = new Date(Date.now() + expiresIn * 1000);
+    // Обновляем токен
+    const refreshResponse = await axios.get(
+      `https://graph.instagram.com/refresh_access_token`,
+      {
+        params: {
+          grant_type: 'ig_refresh_token',
+          access_token: user.ig_access_token
+        }
+      }
+    );
 
+    const newToken = refreshResponse.data.access_token;
+    const expiresIn = refreshResponse.data.expires_in;
+    const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+
+    // Обновляем в БД
     await supabase
       .from('users')
       .update({
-        ig_user_id: igUserId,
-        ig_access_token: longToken,
-        ig_token_expires_at: expiresAt.toISOString(),
+        ig_access_token: newToken,
+        ig_token_expires_at: expiresAt
       })
-      .eq('id', userId);
+      .eq('id', user_id);
 
-    res.redirect(`${FRONTEND_URL}/settings?auth=success`);
-  } catch (error) {
-    console.error('OAuth error:', error);
-    res.redirect(`${FRONTEND_URL}/settings?auth=error`);
+    // Логируем успешное обновление
+    await logAuthEvent(user_id, 'instagram_token_refresh', {
+      action: 'refresh_token',
+      status: 'success',
+      token_expires: expiresAt,
+      instagram_user_id: user.ig_user_id
+    });
+
+    res.json({
+      message: 'Token refreshed successfully',
+      token_expires_at: expiresAt
+    });
+  } catch (error: any) {
+    console.error('Token refresh error:', error.response?.data || error.message);
+
+    await logAuthEvent(user_id, 'token_refresh_error', {
+      action: 'refresh_token',
+      status: 'error',
+      error: error.response?.data?.error?.message || error.message
+    });
+
+    res.status(500).json({ error: 'Failed to refresh token' });
   }
 });
 
