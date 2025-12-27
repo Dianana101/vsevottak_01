@@ -1,93 +1,116 @@
+// backend/src/routes/schedule.ts
 import express from 'express';
 import { supabase } from '../lib/supabase';
-import { generateDailyPosts } from '../services/postGenerator';
-import { logAuthEvent } from '../utils/authLogger';
+import { generateImage } from '../services/imageGenerator';
+import { uploadImageToStorage } from '../services/uploadImage';
 
 const router = express.Router();
 
-router.post('/', async (req, res) => {
+// Создать ежедневное расписание
+router.post('/daily', async (req, res) => {
   try {
-    const { user_id, topic, start_date, end_date, post_time, type = 'daily' } = req.body;
+    const { user_id, formData: {time_of_day, topic, bg_color} } = req.body;
+    console.log('daily req', req.body);
 
-    // Валидация
-    if (!user_id || !topic || !start_date || !end_date || !post_time) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    // Логируем начало создания расписания
-    await logAuthEvent(user_id, 'schedule_create_start', {
-      action: 'create_schedule',
-      topic,
-      start_date,
-      end_date,
-      post_time
-    });
-
-    // Создаем расписание
-    const { data: schedule, error: scheduleError } = await supabase
+    const { data, error } = await supabase
       .from('schedules')
       .insert({
         user_id,
+        time_of_day,
         topic,
-        start_date,
-        end_date,
-        post_time,
-        type,
-        status: 'active'
+        bg_color: bg_color || '#FFFFFF',
+        is_active: true,
+        type: 'daily',
       })
       .select()
       .single();
 
-    if (scheduleError) {
-      await logAuthEvent(user_id, 'schedule_create_error', {
-        action: 'create_schedule',
-        status: 'error',
-        error: scheduleError.message
-      });
+    console.log("error in daily", error);
 
-      return res.status(500).json({ error: scheduleError.message });
+    if (error) throw error;
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('ig_user_id, ig_access_token')
+      .eq('id', user_id)
+      .single();
+
+    console.log("user in daily", user);
+
+    if (user) {
+      // Генерируем время публикации первого поста
+      const [hours, minutes] = time_of_day.split(':');
+      const publishTime = new Date();
+      publishTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+      // Если время уже прошло сегодня, планируем на завтра
+      if (publishTime < new Date()) {
+        publishTime.setDate(publishTime.getDate() + 1);
+      }
+
+      // ✅ ИСПРАВЛЕНИЕ: создаём пост БЕЗ изображения
+      // Изображение будет сгенерировано и загружено при публикации
+      const { data: post, error: postError } = await supabase
+        .from('posts')
+        .insert({
+          user_id,
+          schedule_id: data.id,
+          topic: topic,
+          bg_color: bg_color,
+          caption: `Пост на тему: ${topic}`,
+          status: 'pending',
+          scheduled_at: publishTime.toISOString(),
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (postError) {
+        console.error("Error creating post:", postError);
+      } else {
+        console.log("Post created:", post);
+      }
     }
 
-    // Генерируем посты
-    const posts = await generateDailyPosts(schedule);
-
-    // Логируем успешное создание
-    await logAuthEvent(user_id, 'schedule_create_success', {
-      action: 'create_schedule',
-      status: 'success',
-      schedule_id: schedule.id,
-      posts_count: posts.length,
-      topic
-    });
-
-    res.json({
-      message: 'Schedule created successfully',
-      schedule,
-      posts_count: posts.length
-    });
-  } catch (error: any) {
-    console.error('Error creating schedule:', error);
-
-    const userId = req.body.user_id;
-    if (userId) {
-      await logAuthEvent(userId, 'schedule_create_error', {
-        action: 'create_schedule',
-        status: 'error',
-        error: error.message
-      });
-    }
-
-    res.status(500).json({ error: error.message });
+    res.json({ success: true, schedule: data });
+  } catch (error) {
+    console.error('Create schedule error:', error);
+    res.status(500).json({ error: 'Failed to create schedule' });
   }
 });
 
-router.get('/', async (req, res) => {
+// Создать одноразовый пост
+router.post('/custom', async (req, res) => {
   try {
-    const { user_id } = req.query;
+    const { user_id, scheduled_at, topic, bg_color } = req.body;
 
-    if (!user_id) {
-      return res.status(400).json({ error: 'user_id is required' });
-    }
+    const { data, error } = await supabase
+      .from('posts')
+      .insert({
+        user_id,
+        scheduled_at,
+        topic,
+        bg_color: bg_color || '#FFFFFF',
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    console.log("error in custom", error);
+
+    if (error) throw error;
+
+    res.json({ success: true, post: data });
+  } catch (error) {
+    console.error('Create post error:', error);
+    res.status(500).json({ error: 'Failed to create post' });
+  }
+});
+
+// Получить все расписания пользователя
+router.get('/:user_id', async (req, res) => {
+  try {
+    const { user_id } = req.params;
 
     const { data, error } = await supabase
       .from('schedules')
@@ -95,13 +118,12 @@ router.get('/', async (req, res) => {
       .eq('user_id', user_id)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
+    if (error) throw error;
 
-    res.json(data);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.json({ schedules: data });
+  } catch (error) {
+    console.error('Get schedules error:', error);
+    res.status(500).json({ error: 'Failed to get schedules' });
   }
 });
 
