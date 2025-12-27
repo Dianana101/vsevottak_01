@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api } from '../lib/api';
-import { supabase } from '../lib/supabase';
+import { getDevUser } from '../lib/supabase';
 
 export function Home() {
   const [formData, setFormData] = useState({
@@ -12,8 +12,9 @@ export function Home() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    const { data: { user } } = await supabase.auth.getUser();
-    
+    // Используем getDevUser вместо supabase.auth.getUser()
+    const user = await getDevUser();
+
     if (!user) {
       alert('Войдите в систему');
       return;
@@ -22,13 +23,11 @@ export function Home() {
     try {
       await api.post('/api/schedule/daily', {
         user_id: user.id,
-        ...formData,
+        formData
       });
-
       alert('Расписание создано!');
-      setFormData({ time_of_day: '12:00', topic: '', bg_color: '#FF5733' });
     } catch (error) {
-      console.error('Error creating schedule:', error);
+      console.error(error);
       alert('Ошибка создания расписания');
     }
   }

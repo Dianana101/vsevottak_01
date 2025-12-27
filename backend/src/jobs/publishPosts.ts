@@ -11,7 +11,9 @@ export async function publishScheduledPosts() {
       .from('posts')
       .select('*, users(ig_user_id, ig_access_token)')
       .eq('status', 'pending')
-      .lte('scheduled_at', now);
+      .lte('publish_at', now);
+
+    console.log("error in publishScheduledPosts", error, posts);
 
     if (error) throw error;
 
