@@ -1,6 +1,8 @@
+// backend/src/routes/schedule.ts
 import express from 'express';
 import { supabase } from '../lib/supabase';
-import { generateImage } from  '../services/imageGenerator';
+import { generateImage } from '../services/imageGenerator';
+import { uploadImageToStorage } from '../services/uploadImage';
 
 const router = express.Router();
 
@@ -22,46 +24,53 @@ router.post('/daily', async (req, res) => {
       })
       .select()
       .single();
+
     console.log("error in daily", error);
 
- const { data: user } = await supabase
-   .from('users')
-   .select('ig_user_id, ig_access_token')
-   .eq('id', user_id)
-   .single();
+    if (error) throw error;
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('ig_user_id, ig_access_token')
+      .eq('id', user_id)
+      .single();
+
     console.log("user in daily", user);
 
- if (user) {
-   // Генерируем время публикации первого поста
-   const [hours, minutes] = time_of_day.split(':');
-   const publishTime = new Date();
-   publishTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    if (user) {
+      // Генерируем время публикации первого поста
+      const [hours, minutes] = time_of_day.split(':');
+      const publishTime = new Date();
+      publishTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-   // Если время уже прошло сегодня, планируем на завтра
-   if (publishTime < new Date()) {
-     publishTime.setDate(publishTime.getDate() + 1);
-   }
+      // Если время уже прошло сегодня, планируем на завтра
+      if (publishTime < new Date()) {
+        publishTime.setDate(publishTime.getDate() + 1);
+      }
 
-   // Генерируем изображение
-   const imageUrl = await generateImage(topic, bg_color);
-    console.log("imageUrl in daily", imageUrl);
+      // ✅ ИСПРАВЛЕНИЕ: создаём пост БЕЗ изображения
+      // Изображение будет сгенерировано и загружено при публикации
+      const { data: post, error: postError } = await supabase
+        .from('posts')
+        .insert({
+          user_id,
+          schedule_id: data.id,
+          topic: topic,
+          bg_color: bg_color,
+          caption: `Пост на тему: ${topic}`,
+          status: 'pending',
+          scheduled_at: publishTime.toISOString(),
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
 
-   // Создаем пост
-    const post_sch = await supabase
-     .from('posts')
-     .insert({
-       user_id,
-       schedule_id: data.id,  // ID созданного расписания
-       image_url: imageUrl,
-       caption: `Пост на тему: ${topic}`,
-       status: 'pending',
-       scheduled_at: publishTime.toISOString(),
-       created_at: new Date(),
-     });
-     console.log("post_sch in daily", post_sch);
-
- }
-    if (error) throw error;
+      if (postError) {
+        console.error("Error creating post:", postError);
+      } else {
+        console.log("Post created:", post);
+      }
+    }
 
     res.json({ success: true, schedule: data });
   } catch (error) {
@@ -117,12 +126,5 @@ router.get('/:user_id', async (req, res) => {
     res.status(500).json({ error: 'Failed to get schedules' });
   }
 });
-
-
-// После строки 25 (res.json({ success: true, schedule: data });)
-// Добавить:
-
-// Генерировать первый пост сразу после создания расписания
-
 
 export default router;
