@@ -47,16 +47,19 @@ router.post('/daily', async (req, res) => {
     console.log("imageUrl in daily", imageUrl);
 
    // Создаем пост
-   await supabase
+    const post_sch = await supabase
      .from('posts')
      .insert({
        user_id,
-       scheduled_post_id: data.id,  // ID созданного расписания
+       schedule_id: data.id,  // ID созданного расписания
        image_url: imageUrl,
        caption: `Пост на тему: ${topic}`,
        status: 'pending',
-       publish_at: publishTime.toISOString(),
+       scheduled_at: publishTime.toISOString(),
+       created_at: new Date(),
      });
+     console.log("post_sch in daily", post_sch);
+
  }
     if (error) throw error;
 
