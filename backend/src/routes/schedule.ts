@@ -1,7 +1,6 @@
 // backend/src/routes/schedule.ts
 import express from 'express';
 import { supabase } from '../lib/supabase';
-import { generateImage } from '../services/imageGenerator';
 import { uploadImageToStorage } from '../services/uploadImage';
 
 const router = express.Router();
