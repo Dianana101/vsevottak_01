@@ -150,15 +150,17 @@ async function generateImage(topic: string): Promise<string> {
         console.log(`🎨 Generating image for: ${topic}`);
 
         const response = await axios.post(
-            'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell',
-            {inputs: prompt, parameters: {width: 1024, height: 1024}},
+            'https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell',
+            {
+                inputs: prompt,
+                parameters: {width: 1024, height: 1024},
+            },
             {
                 headers: {
-                    'Authorization': `Bearer ${HUGGING_FACE_API_KEY}`,
-                    'Content-Type': 'application/json'
+                    Authorization: `Bearer ${HUGGING_FACE_API_KEY}`,
+                    Accept: 'image/png',
                 },
                 responseType: 'arraybuffer',
-                timeout: 60000
             }
         );
 
