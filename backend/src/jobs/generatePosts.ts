@@ -1,8 +1,7 @@
 // backend/src/jobs/generatePosts.ts
-import { supabase } from '../lib/supabase';
-import { generateDailyPosts } from '../services/postGenerator';
+import {supabase} from '../lib/supabase';
 
-export async function startGeneratingPosts() {
+async function startGeneratingPosts() {
   console.log('🔄 Checking for active schedules to generate posts...');
 
   try {
@@ -43,7 +42,7 @@ export async function startGeneratingPosts() {
 
       // Генерируем пост на сегодня
       console.log(`📝 Generating post for schedule ${schedule.id}: ${schedule.topic}`);
-      
+
       const [hours, minutes] = schedule.time_of_day.split(':');
       const scheduledAt = new Date();
       scheduledAt.setHours(parseInt(hours), parseInt(minutes), 0, 0);
@@ -61,7 +60,7 @@ export async function startGeneratingPosts() {
         post_time: schedule.time_of_day
       };
 
-      await generateDailyPosts(tempSchedule);
+      // await generateDailyPosts(tempSchedule);
       console.log(`✅ Post generated successfully for schedule ${schedule.id}`);
     }
   } catch (error: any) {

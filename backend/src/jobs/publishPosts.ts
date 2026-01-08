@@ -1,7 +1,6 @@
-import cron from 'node-cron';
 import axios from 'axios';
-import { supabase } from '../lib/supabase';
-import { logAuthEvent } from '../utils/authLogger';
+import {supabase} from '../lib/supabase';
+import {logAuthEvent} from '../utils/authLogger';
 
 interface Post {
   id: string;
@@ -44,7 +43,7 @@ async function publishPost(post: Post) {
     const creationId = containerResponse.data.id;
 
     // Ждем обработки
-    await new Promise(resolve => setTimeout(resolve, 5000));
+      await new Promise(resolve => setTimeout(resolve, 15000));
 
     // 2. Публикуем контент
     const publishResponse = await axios.post(
@@ -57,6 +56,7 @@ async function publishPost(post: Post) {
 
     const mediaId = publishResponse.data.id;
 
+      console.log('generated mediaId', mediaId);
     // Обновляем статус поста
     await supabase
       .from('posts')
@@ -98,6 +98,8 @@ async function publishPost(post: Post) {
 
     const retryCount = (currentPost?.retry_count || 0) + 1;
 
+      // const retryCount = 2;
+
     await supabase
       .from('posts')
       .update({
@@ -108,10 +110,8 @@ async function publishPost(post: Post) {
   }
 }
 
-export function startPublishingJob() {
+export async function startPublishingJob() {
   // Каждую минуту проверяем посты для публикации
-  cron.schedule('* * * * *', async () => {
-    try {
       const now = new Date().toISOString();
 
       // Получаем посты, готовые к публикации
@@ -141,7 +141,7 @@ export function startPublishingJob() {
         return;
       }
 
-      console.log(`📤 Found ${posts.length} posts to publish`);
+    console.log(`📤 Found ${posts.length} posts to publish `);
 
       // Проверяем токены перед публикацией
       for (const post of posts) {
@@ -164,10 +164,6 @@ export function startPublishingJob() {
 
         await publishPost(post as Post);
       }
-    } catch (error) {
-      console.error('Error in publishing job:', error);
-    }
-  });
 
   console.log('📅 Publishing job started');
 }
