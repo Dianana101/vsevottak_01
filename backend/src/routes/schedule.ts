@@ -12,103 +12,105 @@ const router = express.Router();
 
 // Создать ежедневное расписание
 router.post('/daily', async (req, res) => {
-  try {
-    time_of_day, topic, bg_description, carousel_slides
-    console.log('daily req', req.body);
-      let currentDate = new Date(); // todo post time
+    try {
 
-      const postContent: PostContent = await generatePostContent(topic, currentDate);
-      console.log('\n\ngenerated caption and imageUrl', postContent.caption, postContent.imageUrl);
+        const {user_id, formData: {time_of_day, topic, bg_description, carousel_slides}} = req.body;
 
-      const {data, error} = await supabase
-      .from('schedules')
-      .insert({
-        user_id,
-        time_of_day,
-          topic: postContent.caption,
-          bg_cbg_description: bg_description || 'Минималистичный фон с градиентом',
-      carousel_slides: carousel_slides || 1
-        is_active: true,
-        type: 'daily',
-      })
-      .select()
-      .single();
+        console.log('daily req', req.body);
+        let currentDate = new Date(); // todo post time
 
-    console.log("error in daily", error);
+        const postContent: PostContent = await generatePostContent(topic, currentDate, carousel_slides || CAROUSEL_IMAGE_COUNT);
+        console.log('\n\ngenerated caption and imageUrl', postContent.caption, postContent.imageUrl);
 
-    if (error) throw error;
+        const {data, error} = await supabase
+            .from('schedules')
+            .insert({
+                user_id,
+                time_of_day,
+                topic: postContent.caption,
+                bg_description: bg_description || 'Минималистичный фон с градиентом',
+                // carousel_slides: carousel_slides || 1,
+                is_active: true,
+                type: 'daily',
+            })
+            .select()
+            .single();
 
-    const { data: user } = await supabase
-      .from('users')
-      .select('ig_user_id, ig_access_token')
-      .eq('id', user_id)
-      .single();
+        console.log("error in daily", error);
 
-    console.log("user in daily", user);
+        if (error) throw error;
 
-    if (user) {
-      // Генерируем время публикации первого поста
-      const [hours, minutes] = time_of_day.split(':');
-      const publishTime = new Date();
-      publishTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        const {data: user} = await supabase
+            .from('users')
+            .select('ig_user_id, ig_access_token')
+            .eq('id', user_id)
+            .single();
 
-      // Если время уже прошло сегодня, планируем на завтра
-      if (publishTime < new Date()) {
-        publishTime.setDate(publishTime.getDate() + 1);
-      }
+        console.log("user in daily", user);
 
-      // ✅ ИСПРАВЛЕНИЕ: создаём пост БЕЗ изображения
-      // Изображение будет сгенерировано и загружено при публикации
-      const { data: post, error: postError } = await supabase
-        .from('posts')
-        .insert({
-          user_id,
-          schedule_id: data.id,
-          topic: topic,
-        bg_description: bg_description,     
-          carousel_slides: carousel_slides
-            caption: `Пост на тему: ${postContent.caption}`,
-          status: 'pending',
-          scheduled_at: publishTime.toISOString(),
-          created_at: new Date().toISOString(),
-            image_url: postContent.imageUrl.join(','),
+        if (user) {
+            // Генерируем время публикации первого поста
+            const [hours, minutes] = time_of_day.split(':');
+            const publishTime = new Date();
+            publishTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-        })
-        .select()
-        .single();
+            // Если время уже прошло сегодня, планируем на завтра
+            if (publishTime < new Date()) {
+                publishTime.setDate(publishTime.getDate() + 1);
+            }
 
-      if (postError) {
-        console.error("Error creating post:", postError);
-      } else {
-        console.log("Post created:", post);
-      }
+            // ✅ ИСПРАВЛЕНИЕ: создаём пост БЕЗ изображения
+            // Изображение будет сгенерировано и загружено при публикации
+            const {data: post, error: postError} = await supabase
+                .from('posts')
+                .insert({
+                    user_id,
+                    schedule_id: data.id,
+                    topic: topic,
+                    bg_description: bg_description,
+                    // carousel_slides: carousel_slides,
+                    caption: `Пост на тему: ${postContent.caption}`,
+                    status: 'pending',
+                    scheduled_at: publishTime.toISOString(),
+                    created_at: new Date().toISOString(),
+                    image_url: postContent.imageUrl.join(','),
+
+                })
+                .select()
+                .single();
+
+            if (postError) {
+                console.error("Error creating post:", postError);
+            } else {
+                console.log("Post created:", post);
+            }
+        }
+
+        res.json({success: true, schedule: data});
+    } catch (error) {
+        console.error('Create schedule error:', error);
+        res.status(500).json({error: 'Failed to create schedule'});
     }
-
-    res.json({ success: true, schedule: data });
-  } catch (error) {
-    console.error('Create schedule error:', error);
-    res.status(500).json({ error: 'Failed to create schedule' });
-  }
 });
 
 // Получить все расписания пользователя
 router.get('/:user_id', async (req, res) => {
-  try {
-    const { user_id } = req.params;
+    try {
+        const {user_id} = req.params;
 
-    const { data, error } = await supabase
-      .from('schedules')
-      .select('*')
-      .eq('user_id', user_id)
-      .order('created_at', { ascending: false });
+        const {data, error} = await supabase
+            .from('schedules')
+            .select('*')
+            .eq('user_id', user_id)
+            .order('created_at', {ascending: false});
 
-    if (error) throw error;
+        if (error) throw error;
 
-    res.json({ schedules: data });
-  } catch (error) {
-    console.error('Get schedules error:', error);
-    res.status(500).json({ error: 'Failed to get schedules' });
-  }
+        res.json({schedules: data});
+    } catch (error) {
+        console.error('Get schedules error:', error);
+        res.status(500).json({error: 'Failed to get schedules'});
+    }
 });
 
 
@@ -214,7 +216,7 @@ type PostContent = {
     imageUrl: string[];
 }
 
-async function generatePostContent(topic: string, date: Date): Promise<PostContent> {
+async function generatePostContent(topic: string, date: Date, slides: number): Promise<PostContent> {
     const postContent: PostContent = {
         caption: '',
         imageUrl: []
@@ -223,7 +225,7 @@ async function generatePostContent(topic: string, date: Date): Promise<PostConte
     postContent.caption = await generateCaption(topic, date);
 
     const imageUrls: string[] = [];
-    for (let i = 0; i < CAROUSEL_IMAGE_COUNT; i++) {
+    for (let i = 0; i < slides; i++) {
         console.log('generatePostContent', topic, date);
         const imageUrl = await generateImage(topic);
         imageUrls.push(imageUrl);
@@ -234,4 +236,5 @@ async function generatePostContent(topic: string, date: Date): Promise<PostConte
     postContent.imageUrl = imageUrls;
     return postContent;
 }
+
 export default router;
