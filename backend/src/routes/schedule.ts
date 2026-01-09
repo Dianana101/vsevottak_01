@@ -6,6 +6,8 @@ import {v4 as uuidv4} from 'uuid';
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const HUGGING_FACE_API_KEY = process.env.HUGGING_FACE_API_KEY;
 
+const CAROUSEL_IMAGE_COUNT = 3;
+
 const router = express.Router();
 
 // Создать ежедневное расписание
@@ -15,18 +17,15 @@ router.post('/daily', async (req, res) => {
     console.log('daily req', req.body);
       let currentDate = new Date(); // todo post time
 
-      const [caption, imageUrl] = await Promise.all([
-          generateCaption(topic, currentDate),
-          generateImage(topic)
-      ]);
-      console.log('\n\ngenerated caption and imageUrl', caption, imageUrl);
+      const postContent: PostContent = await generatePostContent(topic, currentDate);
+      console.log('\n\ngenerated caption and imageUrl', postContent.caption, postContent.imageUrl);
 
       const {data, error} = await supabase
       .from('schedules')
       .insert({
         user_id,
         time_of_day,
-          topic: caption,
+          topic: postContent.caption,
           bg_color: bg_color || 'rgba(192,111,216,0.77)',
         is_active: true,
         type: 'daily',
@@ -66,11 +65,11 @@ router.post('/daily', async (req, res) => {
           schedule_id: data.id,
           topic: topic,
           bg_color: bg_color,
-            caption: `Пост на тему: ${caption}`,
+            caption: `Пост на тему: ${postContent.caption}`,
           status: 'pending',
           scheduled_at: publishTime.toISOString(),
           created_at: new Date().toISOString(),
-            image_url: imageUrl,
+            image_url: postContent.imageUrl.join(','),
 
         })
         .select()
@@ -184,7 +183,7 @@ async function generateCaption(topic: string, date: Date): Promise<string> {
                     }
                 ],
                 temperature: 0.7,
-                max_tokens: 150
+                max_tokens: 1024
             },
             {
                 headers: {
@@ -205,7 +204,32 @@ function generateImagePrompt(topic: string): string {
     return `Professional Instagram post image, square 1:1 format, 1080x1080 pixels.
 Theme: ${topic}
 Style: Modern, bright, vibrant colors, clean minimalist design, trending Instagram aesthetic.
-Requirements: No text, no watermarks, eye-catching composition, high quality photography style.`;
+Requirements: No watermarks, eye-catching composition, high quality photography style, include short topic description as a title on the image.`;
 }
 
+type PostContent = {
+    caption: string;
+    imageUrl: string[];
+}
+
+async function generatePostContent(topic: string, date: Date): Promise<PostContent> {
+    const postContent: PostContent = {
+        caption: '',
+        imageUrl: []
+    };
+
+    postContent.caption = await generateCaption(topic, date);
+
+    const imageUrls: string[] = [];
+    for (let i = 0; i < CAROUSEL_IMAGE_COUNT; i++) {
+        console.log('generatePostContent', topic, date);
+        const imageUrl = await generateImage(topic);
+        imageUrls.push(imageUrl);
+    }
+
+    const lastImageUrl = await generateImage("Картинка с вопросом для вовлечения аудитории в Instagram постах на тему: " + topic);
+    imageUrls.push(lastImageUrl);
+    postContent.imageUrl = imageUrls;
+    return postContent;
+}
 export default router;

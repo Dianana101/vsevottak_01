@@ -30,20 +30,39 @@ async function publishPost(post: Post) {
       ig_user_id
     });
 
+      const containers = [];
+      for (const imageUrl of post.image_url.split(',')) {
+          // Создаем медиа-контейнер для каждого изображения
+          const containerResponse = await axios.post(
+              `https://graph.facebook.com/v24.0/${ig_user_id}/media`,
+              {
+                  image_url: imageUrl.trim(),
+                  is_carousel_item: true,
+                  access_token: ig_access_token
+              }
+          );
+
+          containers.push(containerResponse.data.id);
+      }
+      await new Promise(resolve => setTimeout(resolve, 30_000));
+
     // 1. Создаем медиа-контейнер
     const containerResponse = await axios.post(
       `https://graph.facebook.com/v24.0/${ig_user_id}/media`,
       {
-        image_url: post.image_url,
+          // image_url: post.image_url,
         caption: post.caption,
-        access_token: ig_access_token
+          access_token: ig_access_token,
+
+          media_type: "CAROUSEL",
+          children: `${containers.join(',')}`
       }
     );
 
     const creationId = containerResponse.data.id;
 
     // Ждем обработки
-      await new Promise(resolve => setTimeout(resolve, 15000));
+      await new Promise(resolve => setTimeout(resolve, 30_000));
 
     // 2. Публикуем контент
     const publishResponse = await axios.post(
