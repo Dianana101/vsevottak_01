@@ -1,4 +1,3 @@
-// backend/src/routes/schedule.ts
 import express from 'express';
 import {supabase} from '../lib/supabase';
 import axios from 'axios';
@@ -20,7 +19,7 @@ router.post('/daily', async (req, res) => {
           generateCaption(topic, currentDate),
           generateImage(topic)
       ]);
-
+      console.log('\n\ngenerated caption and imageUrl', caption, imageUrl);
 
       const {data, error} = await supabase
       .from('schedules')
@@ -28,7 +27,7 @@ router.post('/daily', async (req, res) => {
         user_id,
         time_of_day,
           topic: caption,
-        bg_color: bg_color || '#FFFFFF',
+          bg_color: bg_color || 'rgba(192,111,216,0.77)',
         is_active: true,
         type: 'daily',
       })
@@ -88,34 +87,6 @@ router.post('/daily', async (req, res) => {
   } catch (error) {
     console.error('Create schedule error:', error);
     res.status(500).json({ error: 'Failed to create schedule' });
-  }
-});
-
-// Создать одноразовый пост
-router.post('/custom', async (req, res) => {
-  try {
-    const { user_id, scheduled_at, topic, bg_color } = req.body;
-
-    const { data, error } = await supabase
-      .from('posts')
-      .insert({
-        user_id,
-        scheduled_at,
-        topic,
-        bg_color: bg_color || '#FFFFFF',
-        status: 'pending',
-      })
-      .select()
-      .single();
-
-    console.log("error in custom", error);
-
-    if (error) throw error;
-
-    res.json({ success: true, post: data });
-  } catch (error) {
-    console.error('Create post error:', error);
-    res.status(500).json({ error: 'Failed to create post' });
   }
 });
 

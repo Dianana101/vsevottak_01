@@ -10,7 +10,7 @@ interface Schedule {
 }
 
 // Основная функция генерации постов
-export async function generateDailyPosts(schedule: Schedule): Promise<any[]> {
+async function generateDailyPosts(schedule: Schedule): Promise<any[]> {
     console.log('generateDailyPosts', schedule);
   const startDate = new Date(schedule.start_date);
   const endDate = new Date(schedule.end_date);
