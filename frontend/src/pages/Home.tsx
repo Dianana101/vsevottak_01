@@ -6,7 +6,8 @@ export function Home() {
   const [formData, setFormData] = useState({
     time_of_day: '12:00',
     topic: '',
-    bg_color: '#FF5733',
+    bg_description: 'Минималистичный фон с градиентом',
+    carousel_slides: 1
   });
 
   async function handleSubmit(e: React.FormEvent) {
@@ -65,29 +66,39 @@ export function Home() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Цвет фона
-          </label>
-          <div className="flex gap-4">
-            <input
-              type="color"
-              value={formData.bg_color}
-              onChange={e => setFormData({ ...formData, bg_color: e.target.value })}
-              className="w-20 h-12 border rounded cursor-pointer"
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Описание фона для изображения
+            </label>
+            <textarea
+              value={formData.bg_description}
+              onChange={e => setFormData({ ...formData, bg_description: e.target.value })}
+              placeholder="Например: Минималистичный фон с градиентом от синего к фиолетовому"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              rows={3}
+              required
             />
-            <input
-              type="text"
-              value={formData.bg_color}
-              onChange={e => setFormData({ ...formData, bg_color: e.target.value })}
-              placeholder="#FF5733"
-              className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
+            <p className="text-sm text-gray-500 mt-1">
+              Опишите фон, который будет сгенерирован через Hugging Face
+            </p>
           </div>
-          <p className="text-sm text-gray-500 mt-1">
-            Выберите цвет фона для постов
-          </p>
-        </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Количество слайдов в карусели
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="10"
+              value={formData.carousel_slides}
+              onChange={e => setFormData({ ...formData, carousel_slides: parseInt(e.target.value) })}
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              required
+            />
+            <p className="text-sm text-gray-500 mt-1">
+              От 1 до 10 слайдов для поста-карусели
+            </p>
+          </div>
         <button
           type="submit"
           className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition"
@@ -109,7 +120,7 @@ export function Home() {
           </li>
           <li className="flex items-start">
             <span className="text-blue-500 mr-2">3.</span>
-            <span>Настройте цвет фона изображений</span>
+                          <span>Опишите фон для генерации изображений и количество слайдов</span>
           </li>
           <li className="flex items-start">
             <span className="text-blue-500 mr-2">4.</span>
