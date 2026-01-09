@@ -13,7 +13,7 @@ const router = express.Router();
 // Создать ежедневное расписание
 router.post('/daily', async (req, res) => {
   try {
-    const { user_id, formData: {time_of_day, topic, bg_color} } = req.body;
+    time_of_day, topic, bg_description, carousel_slides
     console.log('daily req', req.body);
       let currentDate = new Date(); // todo post time
 
@@ -26,7 +26,8 @@ router.post('/daily', async (req, res) => {
         user_id,
         time_of_day,
           topic: postContent.caption,
-          bg_color: bg_color || 'rgba(192,111,216,0.77)',
+          bg_cbg_description: bg_description || 'Минималистичный фон с градиентом',
+      carousel_slides: carousel_slides || 1
         is_active: true,
         type: 'daily',
       })
@@ -64,7 +65,8 @@ router.post('/daily', async (req, res) => {
           user_id,
           schedule_id: data.id,
           topic: topic,
-          bg_color: bg_color,
+        bg_description: bg_description,     
+          carousel_slides: carousel_slides
             caption: `Пост на тему: ${postContent.caption}`,
           status: 'pending',
           scheduled_at: publishTime.toISOString(),
