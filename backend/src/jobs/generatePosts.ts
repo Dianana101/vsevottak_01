@@ -1,6 +1,8 @@
 import {supabase} from '../lib/supabase';
 import {generatePostContent} from '../services/contentGenerator';
 
+const CAROUSEL_IMAGE_COUNT = 3;
+
 interface Schedule {
   id: string;
   user_id: string;
@@ -56,7 +58,7 @@ export async function startGeneratingPosts() {
       const postContent = await generatePostContent(
         schedule.topic,
         new Date(),
-        schedule.carousel_slides || 3
+          schedule.carousel_slides || CAROUSEL_IMAGE_COUNT
       );
 
       console.log(`✅ Content generated: caption length=${postContent.caption.length}, images=${postContent.imageUrl.length}`);

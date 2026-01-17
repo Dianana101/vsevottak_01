@@ -17,7 +17,7 @@ router.post('/daily', async (req, res) => {
         time_of_day,
         topic: topic,
         bg_description: bg_description || 'Минималистичный фон с градиентом',
-        carousel_slides: carousel_slides || 3,
+          // carousel_slides: carousel_slides || 3,
         is_active: true,
         type: 'daily',
       })

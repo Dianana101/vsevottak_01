@@ -4,7 +4,6 @@ import { v4 as uuidv4 } from 'uuid';
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const HUGGING_FACE_API_KEY = process.env.HUGGING_FACE_API_KEY;
-const CAROUSEL_IMAGE_COUNT = 3;
 
 export type PostContent = {
   caption: string;
@@ -74,8 +73,7 @@ export async function generateCaption(topic: string, date: Date): Promise<string
           {
             role: 'user',
             content: `Создай короткий пост на тему "${topic}" для Instagram.
-Дата: ${date.toLocaleDateString('ru-RU')}
-Требования: 2-3 предложения, эмодзи, без хештегов, вдохновляющий тон.
+Требования: 4-5 предложений, эмодзи, без хештегов, вдохновляющий тон.
 Ответь ТОЛЬКО текстом поста.`
           }
         ],
@@ -89,8 +87,9 @@ export async function generateCaption(topic: string, date: Date): Promise<string
         }
       }
     );
-
-    return response.data.choices[0].message.content.trim();
+    const caption = response.data.choices[0].message.content.trim();
+    console.log(`✅ Caption generated: ${response.data.choices[0].message.content}`);
+    return caption;
   } catch (error) {
     console.error('Error generating caption:', error);
     return `${topic} 💫\n\nПусть этот день будет наполнен вдохновением и позитивом! ✨`;
