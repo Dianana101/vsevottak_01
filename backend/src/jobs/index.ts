@@ -17,5 +17,5 @@ export function startCronJobs() {
 
     // Генерация постов для активных расписаний каждый день в 2:00 AM
     // cron.schedule('0 2 * * *', startGeneratingPosts);
-    console.log('📅 Cron: Generating posts for schedules daily at 2:00 AM');
+    // console.log('📅 Cron: Generating posts for schedules daily at 2:00 AM');
 }

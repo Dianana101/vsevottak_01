@@ -29,37 +29,36 @@ CREATE TABLE public.auth_logs
 );
 CREATE TABLE public.posts
 (
-    id                     uuid                     NOT NULL DEFAULT gen_random_uuid(),
-    user_id                uuid,
-    schedule_id            uuid,
-    image_url              text,
-    caption                character varying,
-    status                 text                              DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'published'::text, 'failed'::text])),
-    instagram_media_id     text,
-    scheduled_at           timestamp with time zone NOT NULL,
-    published_at           timestamp with time zone,
-    error_message          text,
-    created_at             timestamp with time zone          DEFAULT timezone('utc'::text, now()),
-    topic                  text                     NOT NULL DEFAULT 'Новый пост'::text,
-    bg_color               text                     NOT NULL DEFAULT '#FFFFFF'::text CHECK (bg_color ~* '^#[0-9A-F]{6}$'::text),
-    retry_count            integer                           DEFAULT 0,
-    instagram_container_id text,
-    updated_at             timestamp with time zone          DEFAULT now(),
+    id                 uuid                     NOT NULL DEFAULT gen_random_uuid(),
+    user_id            uuid,
+    schedule_id        uuid,
+    image_url          text,
+    caption            character varying,
+    status             text                              DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'published'::text, 'failed'::text])),
+    instagram_media_id text,
+    scheduled_at       timestamp with time zone NOT NULL,
+    published_at       timestamp with time zone,
+    error_message      text,
+    created_at         timestamp with time zone          DEFAULT timezone('utc'::text, now()),
+    topic              text                     NOT NULL DEFAULT 'Новый пост'::text,
+    retry_count        integer                           DEFAULT 0,
+    updated_at         timestamp with time zone          DEFAULT now(),
+    bg_description     text                     NOT NULL DEFAULT 'Минималистичный фон с градиентом'::text,
     CONSTRAINT posts_pkey PRIMARY KEY (id),
     CONSTRAINT posts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users (id),
     CONSTRAINT posts_schedule_id_fkey FOREIGN KEY (schedule_id) REFERENCES public.schedules (id)
 );
 CREATE TABLE public.schedules
 (
-    id          uuid NOT NULL            DEFAULT gen_random_uuid(),
-    user_id     uuid,
+    id             uuid NOT NULL            DEFAULT gen_random_uuid(),
+    user_id        uuid,
     type USER-DEFINED NOT NULL,
-    topic       text NOT NULL,
-    bg_color    text NOT NULL,
-    time_of_day time without time zone,
-    run_at      timestamp with time zone,
-    is_active   boolean                  DEFAULT true,
-    created_at  timestamp with time zone DEFAULT timezone('utc'::text, now()),
+    topic          text NOT NULL,
+    time_of_day    time without time zone,
+    run_at         timestamp with time zone,
+    is_active      boolean                  DEFAULT true,
+    created_at     timestamp with time zone DEFAULT timezone('utc'::text, now()),
+    bg_description text NOT NULL            DEFAULT 'Минималистичный фон с градиентом'::text,
     CONSTRAINT schedules_pkey PRIMARY KEY (id),
     CONSTRAINT schedules_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users (id)
 );
@@ -75,38 +74,3 @@ CREATE TABLE public.users
     ig_token_expires_at timestamp with time zone,
     CONSTRAINT users_pkey PRIMARY KEY (id)
 );
-
--- =============================================
--- Row Level Security (RLS) Configuration
--- =============================================
-
--- Enable RLS on all public tables
-ALTER TABLE auth_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
-ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE analytics ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies for auth_logs
-CREATE POLICY "Users can view own auth logs" ON auth_logs FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "System can insert auth logs" ON auth_logs FOR INSERT WITH CHECK (true);
-
--- RLS Policies for users
-CREATE POLICY "Users can view own users data" ON users FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can update own users data" ON users FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Users can delete own users data" ON users FOR DELETE USING (auth.uid() = id);
-
--- RLS Policies for schedules
-CREATE POLICY "Users can select own schedules" ON schedules FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own schedules" ON schedules FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own schedules" ON schedules FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own schedules" ON schedules FOR DELETE USING (auth.uid() = user_id);
-
--- RLS Policies for posts
-CREATE POLICY "Users can select own posts" ON posts FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own posts" ON posts FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own posts" ON posts FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own posts" ON posts FOR DELETE USING (auth.uid() = user_id);
-
--- RLS Policies for analytics
-CREATE POLICY "Users can select own analytics" ON analytics FOR SELECT USING (auth.uid() = user_id);
