@@ -132,6 +132,7 @@ async function publishPost(post: Post) {
 export async function startPublishingJob() {
     // Каждую минуту проверяем посты для публикации
     const now = new Date().toISOString();
+    console.log(`📤 Start ${now} publishing jobs `);
 
     // Получаем посты, готовые к публикации
     const {data: posts, error} = await supabase
@@ -155,12 +156,12 @@ export async function startPublishingJob() {
         console.error('Error fetching posts:', error);
         return;
     }
+    console.log(`📤 Found ${posts?.length} posts to publish `);
 
     if (!posts || posts.length === 0) {
         return;
     }
 
-    console.log(`📤 Found ${posts.length} posts to publish `);
 
     // Проверяем токены перед публикацией
     for (const post of posts) {

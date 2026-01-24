@@ -18,18 +18,16 @@ export async function generateImage(topic: string): Promise<string> {
     console.log(`🎨 Generating image for: ${topic}`);
 
     const response = await axios.post(
-      'https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell',
-      {
-        inputs: prompt,
-        parameters: { width: 1024, height: 1024 },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${HUGGING_FACE_API_KEY}`,
-          Accept: 'image/png',
-        },
-        responseType: 'arraybuffer',
-      }
+        'https://api-inference.huggingface.co/models/<russian-text-image-model>',
+        {inputs: `${prompt}`},
+        {
+          headers: {
+            Authorization: `Bearer ${HUGGING_FACE_API_KEY}`,
+            Accept: 'image/png',
+            'Content-Type': 'application/json',
+          },
+          responseType: 'arraybuffer',
+        }
     );
 
     const imageBuffer = Buffer.from(response.data);
