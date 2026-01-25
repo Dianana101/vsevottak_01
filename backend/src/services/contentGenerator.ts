@@ -18,8 +18,16 @@ export async function generateImage(topic: string): Promise<string> {
     console.log(`🎨 Generating image for: ${topic}`);
 
     const response = await axios.post(
-        'https://api-inference.huggingface.co/models/<russian-text-image-model>',
-        {inputs: `${prompt}`},
+        'https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0',
+        {
+          inputs: `poster, big text in Russian: "${prompt}"`,
+          parameters: {
+            width: 1024,
+            height: 1024,
+            guidance_scale: 7.5,
+            num_inference_steps: 30,
+          },
+        },
         {
           headers: {
             Authorization: `Bearer ${HUGGING_FACE_API_KEY}`,
@@ -31,6 +39,8 @@ export async function generateImage(topic: string): Promise<string> {
     );
 
     const imageBuffer = Buffer.from(response.data);
+
+
     const fileName = `${uuidv4()}.png`;
 
     const { error } = await supabase.storage

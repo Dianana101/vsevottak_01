@@ -47,7 +47,7 @@ export async function startGeneratingPosts() {
         .lt('scheduled_at', tomorrow.toISOString());
 
       if (existingPosts && existingPosts.length > 0) {
-        console.log(`Posts already generated for schedule ${schedule.id} today`);
+        console.log(`Posts already generated for schedule ${schedule.id} today: ${existingPosts.length}`);
         continue;
       }
 
