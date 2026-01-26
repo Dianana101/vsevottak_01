@@ -5,7 +5,7 @@ import {startGeneratingPosts} from './generatePosts';
 
 export function startCronJobs() {
   // Проверка и публикация постов каждые 5 минут
-  // cron.schedule('*/5 * * * *', startPublishingJob);
+  cron.schedule('*/5 * * * *', startPublishingJob);
   console.log('📅 Cron: Publishing posts every 5 minutes');
 
   // Обновление токенов каждый день в 3:00 AM
@@ -13,7 +13,7 @@ export function startCronJobs() {
   console.log('🔄 Cron: Refreshing tokens daily at 3:00 AM');
 
   // Генерация постов для активных расписаний
-  cron.schedule('50 21 * * *', startGeneratingPosts); // moscow tz
+  cron.schedule('40 3 * * *', startGeneratingPosts); // moscow tz
   console.log('📝 Cron: Generating posts for schedules daily at 2:00 AM');
 }
 

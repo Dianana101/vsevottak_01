@@ -130,9 +130,28 @@ async function publishPost(post: Post) {
 }
 
 export async function startPublishingJob() {
-    // Каждую минуту проверяем посты для публикации
-    const now = new Date().toISOString();
-    console.log(`📤 Start ${now} publishing jobs `);
+    const now2 = new Date().toISOString();
+    const now = new Date(new Date().setUTCHours(new Date().getHours())).toISOString();
+    console.log(`📤 Start ${now} publishing jobs `, now2);
+
+
+    const {data: allPosts, error: error1} = await supabase
+        .from('posts')
+        .select(`
+          *,
+          schedules!inner (
+            user_id,
+            users!inner (
+              ig_user_id,
+              ig_access_token,
+              ig_token_expires_at
+            )
+          )
+        `)
+        .eq('status', 'pending')
+        .lt('retry_count', 3);
+    console.log("all posts: ", allPosts);
+
 
     // Получаем посты, готовые к публикации
     const {data: posts, error} = await supabase

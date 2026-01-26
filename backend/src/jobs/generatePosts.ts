@@ -1,7 +1,7 @@
 import {supabase} from '../lib/supabase';
 import {generatePostContent} from '../services/contentGenerator';
 
-const CAROUSEL_IMAGE_COUNT = 3;
+const CAROUSEL_IMAGE_COUNT = 1;
 
 interface Schedule {
   id: string;
@@ -67,7 +67,7 @@ export async function startGeneratingPosts() {
       const [hours, minutes] = schedule.time_of_day.split(':');
       const scheduledAt = new Date();
       scheduledAt.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
+      console.log("scheduled at: ", scheduledAt, "now: " + new Date());
       // Если время уже прошло, генерируем на завтра
       if (scheduledAt < new Date()) {
         scheduledAt.setDate(scheduledAt.getDate() + 1);
