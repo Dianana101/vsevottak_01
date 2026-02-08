@@ -1,56 +1,61 @@
 import express from 'express';
-import {supabase} from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 const router = express.Router();
 
-// Создать ежедневное расписание
+// Create a daily posting schedule
 router.post('/daily', async (req, res) => {
   try {
-    const {user_id, formData: {time_of_day, topic, bg_description, carousel_slides}} = req.body;
+    const { user_id, formData: { time_of_day, topic, bg_description, carousel_slides } } = req.body;
     console.log('daily req', req.body);
 
-    // Сохраняем только расписание, без создания постов
-    const {data, error} = await supabase
+    // Save only the schedule, without creating posts
+    const { data, error } = await supabase
       .from('schedules')
       .insert({
         user_id,
         time_of_day,
         topic: topic,
-        bg_description: bg_description || 'Минималистичный фон с градиентом',
-          // carousel_slides: carousel_slides || 3,
+        bg_description: bg_description || 'Minimalist gradient background',
+        // carousel_slides: carousel_slides || 3,
         is_active: true,
         type: 'daily',
       })
       .select()
       .single();
 
-    console.log("error in daily", error);
+    console.log('error in daily', error);
+
     if (error) throw error;
 
-    res.json({success: true, schedule: data, message: 'Schedule created. Posts will be generated automatically by cron job.'});
+    res.json({
+      success: true,
+      schedule: data,
+      message: 'Schedule created. Posts will be generated automatically by cron job.'
+    });
   } catch (error) {
     console.error('Create schedule error:', error);
-    res.status(500).json({error: 'Failed to create schedule'});
+    res.status(500).json({ error: 'Failed to create schedule' });
   }
 });
 
-// Получить все расписания пользователя
+// Get all schedules for a user
 router.get('/:user_id', async (req, res) => {
   try {
-    const {user_id} = req.params;
+    const { user_id } = req.params;
 
-    const {data, error} = await supabase
+    const { data, error } = await supabase
       .from('schedules')
       .select('*')
       .eq('user_id', user_id)
-      .order('created_at', {ascending: false});
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    res.json({schedules: data});
+    res.json({ schedules: data });
   } catch (error) {
     console.error('Get schedules error:', error);
-    res.status(500).json({error: 'Failed to get schedules'});
+    res.status(500).json({ error: 'Failed to get schedules' });
   }
 });
 
