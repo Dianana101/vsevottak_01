@@ -10,7 +10,7 @@ export type PostContent = {
   imageUrl: string[];
 };
 
-// Генерация полного контента поста (caption + images)
+// Generate complete post content (caption + images)
 export async function generatePostContent(topic: string, date: Date, slides: number): Promise<PostContent> {
   const postContent: PostContent = {
     caption: '',
@@ -19,65 +19,64 @@ export async function generatePostContent(topic: string, date: Date, slides: num
 
   console.log('generatePostContent slide number: ', slides);
 
-  // topic - тема для расписания
-  postContent.caption = await generateCaption(topic, date); //
-
+  // Generate caption for the post
+  postContent.caption = await generateCaption(topic, date);
   const imageUrls: string[] = [];
+
+  // Generate images for each slide
   for (let i = 0; i < slides; i++) {
     console.log('generatePostContent: ' + i, topic, date);
     const imageUrl = await generateImage(i + ": " + topic);
     imageUrls.push(imageUrl);
   }
 
-  const lastImageUrl = await generateImage("Что вы думаете по этому поводу? Напишите в комментариях!");
+  // Generate final call-to-action image
+  const lastImageUrl = await generateImage("What do you think about this? Leave your thoughts in the comments!");
   imageUrls.push(lastImageUrl);
 
   postContent.imageUrl = imageUrls;
   return postContent;
 }
 
-
-// Генерация текста через Perplexity
+// Generate caption text using Perplexity API
 export async function generateCaption(topic: string, date: Date): Promise<string> {
   console.log('generateCaption', topic);
   try {
     const response = await axios.post(
-        'https://api.perplexity.ai/chat/completions',
-        {
-          model: 'sonar',
-          messages: [
-            {
-              role: 'system',
-              content: 'Ты создаешь короткие мотивирующие посты для Instagram на русском языке.'
-            },
-            {
-              role: 'user',
-              content: `Создай короткий пост на тему "${topic}" для Instagram.
-Требования: 4-5 предложений, эмодзи, без хештегов, вдохновляющий тон.
-Ответь ТОЛЬКО текстом поста.`
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 1024
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-            'Content-Type': 'application/json'
+      'https://api.perplexity.ai/chat/completions',
+      {
+        model: 'sonar',
+        messages: [
+          {
+            role: 'system',
+            content: 'You create short, motivating Instagram posts in English. Be inspiring, engaging, and authentic.'
+          },
+          {
+            role: 'user',
+            content: `Create a short Instagram post about "${topic}".\nRequirements: 4-5 sentences, include relevant emojis, no hashtags, inspiring and engaging tone.\nRespond with ONLY the post text.`
           }
+        ],
+        temperature: 0.7,
+        max_tokens: 1024
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+          'Content-Type': 'application/json'
         }
+      }
     );
+
     const caption = response.data.choices[0].message.content.trim();
     console.log(`✅ Caption generated: ${response.data.choices[0].message.content}`);
     return caption;
   } catch (error) {
     console.error('Error generating caption:', error);
-    return `${topic} 💫\n\nПусть этот день будет наполнен вдохновением и позитивом! ✨`;
+    return `${topic} 💫\n\nMay this day be filled with inspiration and positivity! ✨`;
   }
 }
 
-
-// Генерация изображения через Hugging Face
+// Generate image using Hugging Face FLUX model
 export async function generateImage(topic: string): Promise<string> {
   console.log('generateImage', topic);
   try {
@@ -85,23 +84,21 @@ export async function generateImage(topic: string): Promise<string> {
     console.log(`🎨 Generating image for: ${topic}`);
 
     const response = await axios.post(
-        'https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell',
-        {
-          inputs: prompt,
-          parameters: {width: 1024, height: 1024},
+      'https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell',
+      {
+        inputs: prompt,
+        parameters: { width: 1024, height: 1024 },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${HUGGING_FACE_API_KEY}`,
+          Accept: 'image/png',
         },
-        {
-          headers: {
-            Authorization: `Bearer ${HUGGING_FACE_API_KEY}`,
-            Accept: 'image/png',
-          },
-          responseType: 'arraybuffer',
-        }
+        responseType: 'arraybuffer',
+      }
     );
 
     const imageBuffer = Buffer.from(response.data);
-
-
     const fileName = `${uuidv4()}.png`;
 
     const { error } = await supabase.storage
@@ -126,7 +123,7 @@ export async function generateImage(topic: string): Promise<string> {
   }
 }
 
-// Генерация промпта для изображения
+// Generate detailed image prompt for consistent aesthetic
 function generateImagePrompt(topic: string): string {
   return `Professional Instagram post image, square 1:1 format, 1080x1080 pixels.
 Theme: ${topic}
