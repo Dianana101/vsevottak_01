@@ -9,13 +9,13 @@ const INSTAGRAM_APP_ID = process.env.INSTAGRAM_APP_ID;
 const INSTAGRAM_APP_SECRET = process.env.INSTAGRAM_APP_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI || 'http://localhost:3000/auth/callback';
 
-// Начало OAuth flow
+// Start OAuth flow
 router.get('/instagram', (req, res) => {
   const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${INSTAGRAM_APP_ID}&redirect_uri=${REDIRECT_URI}&scope=instagram_basic,instagram_content_publish&response_type=code`;
   res.redirect(authUrl);
 });
 
-// Callback после авторизации
+// Callback after authorization
 router.get('/callback', async (req, res) => {
   const { code } = req.query;
 
@@ -24,7 +24,7 @@ router.get('/callback', async (req, res) => {
   }
 
   try {
-    // Обмен кода на короткий токен
+    // Exchange code for short-lived token
     const tokenResponse = await axios.post(
       'https://api.instagram.com/oauth/access_token',
       new URLSearchParams({
@@ -39,7 +39,7 @@ router.get('/callback', async (req, res) => {
     const shortLivedToken = tokenResponse.data.access_token;
     const igUserId = tokenResponse.data.user_id;
 
-    // Обмен на долгосрочный токен
+    // Exchange for long-lived token
     const longLivedResponse = await axios.get(
       `https://graph.instagram.com/access_token`,
       {
@@ -52,10 +52,10 @@ router.get('/callback', async (req, res) => {
     );
 
     const longLivedToken = longLivedResponse.data.access_token;
-    const expiresIn = longLivedResponse.data.expires_in; // 60 дней в секундах
+    const expiresIn = longLivedResponse.data.expires_in; // 60 days in seconds
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
-    // Сохраняем или обновляем пользователя
+    // Save or update user
     const { data: existingUser } = await supabase
       .from('users')
       .select('id')
@@ -65,7 +65,7 @@ router.get('/callback', async (req, res) => {
     let userId: string;
 
     if (existingUser) {
-      // Обновляем токен
+      // Update token
       await supabase
         .from('users')
         .update({
@@ -76,7 +76,7 @@ router.get('/callback', async (req, res) => {
 
       userId = existingUser.id;
 
-      // Логируем обновление токена
+      // Log token refresh
       await logAuthEvent(userId, 'instagram_token_refresh', {
         action: 'oauth_callback',
         status: 'success',
@@ -84,7 +84,7 @@ router.get('/callback', async (req, res) => {
         instagram_user_id: igUserId
       });
     } else {
-      // Создаем нового пользователя
+      // Create new user
       const { data: newUser } = await supabase
         .from('users')
         .insert({
@@ -97,7 +97,7 @@ router.get('/callback', async (req, res) => {
 
       userId = newUser!.id;
 
-      // Логируем первую авторизацию
+      // Log first authorization
       await logAuthEvent(userId, 'instagram_auth_first', {
         action: 'oauth_callback',
         status: 'success',
@@ -115,7 +115,7 @@ router.get('/callback', async (req, res) => {
   } catch (error: any) {
     console.error('OAuth error:', error.response?.data || error.message);
 
-    // Логируем ошибку OAuth (без user_id, т.к. не авторизован)
+    // Log OAuth error (no user_id since not authorized)
     await logAuthEvent(null, 'instagram_auth_error', {
       action: 'oauth_callback',
       status: 'error',
@@ -126,7 +126,7 @@ router.get('/callback', async (req, res) => {
   }
 });
 
-// Ручное обновление токена (для долгосрочных токенов)
+// Manual token refresh (for long-lived tokens)
 router.post('/refresh-token', async (req, res) => {
   const { user_id } = req.body;
 
@@ -135,7 +135,7 @@ router.post('/refresh-token', async (req, res) => {
   }
 
   try {
-    // Получаем текущий токен
+    // Get current token
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('ig_access_token, ig_user_id')
@@ -151,7 +151,7 @@ router.post('/refresh-token', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Обновляем токен
+    // Refresh token
     const refreshResponse = await axios.get(
       `https://graph.instagram.com/refresh_access_token`,
       {
@@ -166,7 +166,7 @@ router.post('/refresh-token', async (req, res) => {
     const expiresIn = refreshResponse.data.expires_in;
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
-    // Обновляем в БД
+    // Update in database
     await supabase
       .from('users')
       .update({
@@ -175,7 +175,7 @@ router.post('/refresh-token', async (req, res) => {
       })
       .eq('id', user_id);
 
-    // Логируем успешное обновление
+    // Log successful refresh
     await logAuthEvent(user_id, 'instagram_token_refresh', {
       action: 'refresh_token',
       status: 'success',
