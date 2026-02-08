@@ -1,345 +1,305 @@
 # VseVotTak - Instagram Auto-Posting App
 
-🚀 Автоматизированное приложение для создания и публикации постов в Instagram с текстовыми изображениями по расписанию.
+🚀 An automated application for creating and publishing Instagram posts with AI-generated images and captions on a schedule.
 
-## 📋 Описание
+## 📋 Overview
 
-VseVotTak — это full-stack приложение для автоматической генерации и публикации контента в Instagram. Приложение создаёт красивые текстовые изображения и публикует их по заданному расписанию (например, каждый день в 12:00).
+VseVotTak is a full-stack application for automatically generating and publishing engaging content on Instagram. The app creates beautiful text-image posts and publishes them on a predefined schedule (for example, every day at 12:00).
 
-### Основные возможности:
+## ✨ Key Features:
 
-- ✅ **OAuth авторизация** через Facebook для Instagram Business API
-- ✅ **Автоматическое обновление токенов** (long-lived tokens)
-- ✅ **Планировщик постов** с гибким расписанием
-- ✅ **Генерация изображений** с кастомным текстом, шрифтами и цветами
-- ✅ **Аналитика** и статистика публикаций
-- ✅ **Одновременные расписания** для разных тем
-- ✅ **Telegram-бот** для управления (опционально)
+- ✅ **OAuth Authorization** via Facebook for Instagram Business API
+- ✅ **Automatic Token Refresh** (long-lived tokens)
+- ✅ **Post Scheduler** with flexible scheduling options
+- ✅ **Image Generation** with custom text, fonts, and colors
+- ✅ **Analytics & Statistics** for published posts
+- ✅ **Multi-schedule Support** for different topics
+- ✅ **Telegram Bot** for management (optional)
 
-## 🏗️ Архитектура
+## 🏗️ Architecture
 
 ```
 vsevottak_01/
-├── backend/          # Node.js + TypeScript API
+├── backend/               # Node.js + TypeScript API
 │   ├── src/
-│   │   ├── routes/       # API endpoints
-│   │   ├── services/     # Business logic
-│   │   ├── jobs/         # Cron jobs
-│   │   ├── lib/          # Utilities
-│   │   └── types/        # TypeScript types
-│   ├── package.json
-│   └── tsconfig.json
-│
-├── frontend/         # React + TypeScript
+│   │   ├── routes/        # API endpoints
+│   │   ├── services/      # Business logic
+│   │   ├── lib/           # Utilities and helpers
+│   │   ├── jobs/          # Scheduled tasks
+│   │   └── utils/         # Common utilities
+│   └── package.json
+├── frontend/              # React + TypeScript UI
 │   ├── src/
-│   │   ├── components/   # UI components
-│   │   ├── pages/        # Pages
-│   │   ├── hooks/        # Custom hooks
-│   │   ├── lib/          # Utilities
-│   │   └── types/        # TypeScript types
-│   ├── package.json
-│   └── vite.config.ts
-│
-├── docs/             # Документация
-└── .env.example      # Environment variables template
+│   │   ├── components/    # React components
+│   │   ├── pages/         # Page components
+│   │   └── utils/         # Frontend utilities
+│   └── package.json
+└── .env                   # Environment variables
 ```
 
-## 🛠️ Технологический стек
+## 🛠️ Tech Stack
 
 ### Backend:
-- **Node.js** + **TypeScript**
-- **Express.js** - API server
+- **Node.js** with TypeScript
+- **Express.js** - Web framework
 - **Supabase** - PostgreSQL database & auth
-- **Node-cron** - Job scheduling
-- **Canvas/Sharp** - Image generation
-- **Axios** - HTTP client for Instagram API
+- **Axios** - HTTP client
+- **Perplexity AI API** - Text generation
+- **Hugging Face** - Image generation
+- **node-cron** - Job scheduling
 
 ### Frontend:
-- **React** + **TypeScript**
-- **Vite** - Build tool
-- **TailwindCSS** - Styling
+- **React 18** with TypeScript
 - **React Router** - Navigation
-- **Axios** - API calls
+- **Axios** - API communication
+- **Tailwind CSS** - Styling
 
 ### Infrastructure:
-- **Instagram Content Publishing API**
-- **Facebook OAuth**
-- **Google Cloud / Firebase** (for deployment)
+- **Supabase** - Database, Auth, Storage
+- **Docker** - Containerization
+- **GitHub Actions** - CI/CD
 
-## 🚀 Установка и запуск
+## 🚀 Installation & Setup
 
-### Предварительные требования:
+### Prerequisites:
 
-1. **Node.js** >= 18.x
-2. **npm** или **yarn**
-3. **Supabase** аккаунт
-4. **Facebook Developer** аккаунт с настроенным приложением
-5. **Instagram Business Account** связанный с Facebook Page
+- Node.js 18+
+- npm or yarn
+- Supabase account
+- Perplexity API key
+- Hugging Face API key
+- Facebook Developer account with Instagram Business API access
 
-### Шаг 1: Клонирование репозитория
+### Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/Dianana101/vsevottak_01.git
 cd vsevottak_01
 ```
 
-### Шаг 2: Настройка Backend
+### Step 2: Backend Setup
 
 ```bash
 cd backend
 npm install
-cp .env.example .env
 ```
 
-Отредактируйте `.env`:
+Create a `.env` file:
 
 ```env
-# Instagram API
-INSTAGRAM_APP_ID=your_app_id
-INSTAGRAM_APP_SECRET=your_app_secret
-INSTAGRAM_REDIRECT_URI=https://your-domain.com/api/auth/instagram/callback
-
-# Supabase
+PORRT=3001
 SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_KEY=your_supabase_service_key
-
-# Server
-PORT=3001
-NODE_ENV=development
+SUPABASE_KEY=your_supabase_key
+PERPLEXITY_API_KEY=your_perplexity_key
+HUGGING_FACE_API_KEY=your_hugging_face_key
+FACEBOOK_APP_ID=your_facebook_app_id
+FACEBOOK_APP_SECRET=your_facebook_app_secret
+FACEBOOK_REDIRECT_URI=http://localhost:3000/callback
 ```
 
-### Шаг 3: Настройка Frontend
+### Step 3: Frontend Setup
 
-```bash
-cd ../frontend
-npm install
-cp .env.example .env
-```
-
-Отредактируйте `.env`:
-
-```env
-VITE_API_URL=http://localhost:3001
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
-
-### Шаг 4: Настройка базы данных
-
-Выполните миграции в Supabase:
-
-```sql
--- Создание таблицы users
-CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  email TEXT UNIQUE NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  
-  -- Instagram credentials
-  ig_user_id TEXT,
-  ig_access_token TEXT,
-  ig_token_expires_at TIMESTAMPTZ
-);
-
--- Создание таблицы schedules
-CREATE TABLE schedules (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  
-  time_of_day TIME NOT NULL,
-  topic TEXT NOT NULL,
-  bg_color TEXT DEFAULT '#FFFFFF',
-  
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Создание таблицы posts
-CREATE TABLE posts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  schedule_id UUID REFERENCES schedules(id) ON DELETE SET NULL,
-  
-  scheduled_at TIMESTAMPTZ NOT NULL,
-  published_at TIMESTAMPTZ,
-  
-  topic TEXT NOT NULL,
-  bg_color TEXT NOT NULL,
-  image_url TEXT,
-  
-  instagram_media_id TEXT,
-  status TEXT DEFAULT 'pending', -- pending, published, failed
-  error_message TEXT,
-  
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-### Шаг 5: Запуск приложения
-
-**Backend:**
-```bash
-cd backend
-npm run dev
-```
-
-**Frontend:**
 ```bash
 cd frontend
-npm run dev
+npm install
 ```
 
-Откройте браузер: `http://localhost:5173`
+Create a `.env` file:
 
-## 📚 Документация API
+```env
+REACT_APP_API_URL=http://localhost:3001
+REACT_APP_FACEBOOK_APP_ID=your_facebook_app_id
+```
+
+### Step 4: Database Setup
+
+Connect to Supabase and run the SQL migrations:
+
+```sql
+-- Tables creation scripts (see backend/tst.sql)
+```
+
+### Step 5: Start the Application
+
+```bash
+# Terminal 1: Start Backend
+cd backend
+npm start
+
+# Terminal 2: Start Frontend
+cd frontend
+npm start
+```
+
+## 📚 API Documentation
 
 ### Auth Endpoints
 
 #### `GET /api/auth/instagram/login`
-Инициирует OAuth flow для Instagram
+Initiate Instagram OAuth login flow.
 
-**Query params:**
-- `user_id` - ID пользователя
-
-**Response:** Redirect to Facebook OAuth
+**Response:**
+```json
+{
+  "authUrl": "https://www.instagram.com/oauth/authorize?..."
+}
+```
 
 #### `GET /api/auth/instagram/callback`
-Обрабатывает OAuth callback
+Handle Instagram OAuth callback.
 
-**Query params:**
-- `code` - Authorization code
-- `state` - User ID
+**Query Parameters:**
+- `code` - Authorization code from Instagram
+- `state` - State parameter for verification
 
-**Response:** Redirect to frontend with auth status
+**Response:**
+```json
+{
+  "accessToken": "token",
+  "userId": "instagram_user_id"
+}
+```
 
 ### Schedule Endpoints
 
 #### `POST /api/schedule/daily`
-Создаёт ежедневное расписание
+Create a daily posting schedule.
 
-**Body:**
+**Request Body:**
 ```json
 {
-  "time_of_day": "12:00",
-  "topic": "Психология и отношения",
-  "bg_color": "#FF5733",
-  "user_id": "uuid"
+  "topic": "Morning Motivation",
+  "time": "09:00",
+  "slides": 3,
+  "timezone": "UTC"
+}
+```
+
+**Response:**
+```json
+{
+  "scheduleId": "uuid",
+  "status": "active"
 }
 ```
 
 #### `POST /api/schedule/custom`
-Создаёт одноразовый пост
+Create a custom schedule.
 
-**Body:**
+**Request Body:**
 ```json
 {
-  "scheduled_at": "2025-01-01T12:00:00Z",
-  "topic": "Новогоднее поздравление",
-  "bg_color": "#00FF00",
-  "user_id": "uuid"
+  "topic": "Weekly Tips",
+  "cronExpression": "0 9 * * 1",
+  "slides": 5
 }
 ```
 
 #### `GET /api/analytics`
-Возвращает статистику постов
+Get analytics for published posts.
 
-## 🔧 Разработка
-
-### Структура проекта (детально)
-
-**Backend:**
-```
-backend/
-├── src/
-│   ├── routes/
-│   │   ├── auth.ts           # OAuth endpoints
-│   │   ├── schedule.ts       # Schedule management
-│   │   └── analytics.ts      # Stats endpoints
-│   ├── services/
-│   │   ├── instagram.ts      # Instagram API
-│   │   ├── imageGenerator.ts # Image creation
-│   │   └── scheduler.ts      # Post scheduling
-│   ├── jobs/
-│   │   ├── publishPosts.ts   # Cron: publish scheduled posts
-│   │   └── refreshTokens.ts  # Cron: refresh expiring tokens
-│   ├── lib/
-│   │   ├── supabase.ts       # Supabase client
-│   │   └── utils.ts          # Helper functions
-│   └── index.ts              # Server entry point
+**Response:**
+```json
+{
+  "totalPosts": 42,
+  "totalLikes": 1250,
+  "totalComments": 89,
+  "averageEngagement": "3.2%"
+}
 ```
 
-**Frontend:**
+## 🔧 Development
+
+### Project Structure (Detailed)
+
 ```
-frontend/
-├── src/
-│   ├── components/
-│   │   ├── ScheduleForm.tsx
-│   │   ├── PostCard.tsx
-│   │   └── Analytics.tsx
-│   ├── pages/
-│   │   ├── Home.tsx
-│   │   ├── Settings.tsx
-│   │   └── Analytics.tsx
-│   ├── hooks/
-│   │   ├── useAuth.ts
-│   │   └── usePosts.ts
-│   ├── lib/
-│   │   ├── api.ts
-│   │   └── supabase.ts
-│   └── App.tsx
+backend/src/
+├── routes/
+│   ├── auth.ts            # Authentication routes
+│   ├── schedule.ts        # Schedule management
+│   └── analytics.ts       # Analytics endpoints
+├── services/
+│   ├── contentGenerator.ts # AI content generation
+│   ├── instagramService.ts # Instagram API integration
+│   └── scheduler.ts       # Job scheduling
+├── lib/
+│   ├── supabase.ts        # Supabase client
+│   └── instagram.ts       # Instagram API wrapper
+├── jobs/
+│   └── postPublisher.ts   # Background post publishing
+└── utils/
+    ├── logger.ts          # Logging
+    └── errors.ts          # Error handling
 ```
 
-## 📊 Примеры использования
+### Running Tests
 
-### 1. Подключение Instagram аккаунта
+```bash
+npm test
+```
 
-1. Перейдите в Settings
-2. Нажмите "Connect Instagram Account"
-3. Авторизуйтесь через Facebook
-4. Выберите Instagram Business аккаунт
+### Building for Production
 
-### 2. Создание ежедневного расписания
+```bash
+npm run build
+```
 
-1. Перейдите на главную страницу
-2. Заполните форму:
-   - Время: 12:00
-   - Тема: "Психология"
-   - Цвет фона: #FF5733
-3. Нажмите "Create Schedule"
+## 📊 Usage Examples
 
-### 3. Просмотр аналитики
+### 1. Connecting Your Instagram Account
 
-1. Перейдите в Analytics
-2. Смотрите статистику по опубликованным постам
+```bash
+POST /api/auth/instagram/login
+```
 
-## 🔐 Безопасность
+### 2. Creating a Daily Schedule
 
-- **Токены Instagram** хранятся в Supabase с шифрованием
-- **Environment variables** не коммитятся в Git
-- **API endpoints** защищены аутентификацией
-- **CORS** настроен только для доверенных доменов
+```bash
+POST /api/schedule/daily
+Body: {
+  "topic": "Daily Inspiration",
+  "time": "09:00",
+  "slides": 3
+}
+```
 
-## 🤝 Содействие
+### 3. Viewing Analytics
 
-Приветствуются Pull Requests! Для больших изменений сначала откройте Issue.
+```bash
+GET /api/analytics
+```
 
-## 📄 Лицензия
+## 🔐 Security
 
-GPL-3.0 - см. [LICENSE](LICENSE)
+- All sensitive data is stored encrypted in Supabase
+- OAuth tokens are securely managed with automatic refresh
+- Environment variables are used for API keys
+- Input validation on all endpoints
+- CORS protection enabled
+- SQL injection prevention through parameterized queries
 
-## 👤 Автор
+## 🤝 Contributing
 
-**Dianana101**
+Contributions are welcome! Please:
 
-- GitHub: [@Dianana101](https://github.com/Dianana101)
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## 🙏 Благодарности
+## 📄 License
 
-- [Instagram Content Publishing API](https://developers.facebook.com/docs/instagram-api)
-- [Supabase](https://supabase.com)
-- [React](https://react.dev)
+This project is licensed under the [GPL-3.0 License](./LICENSE) - see the LICENSE file for details.
 
----
+## 👤 Author
 
-**Статус разработки:** 🚧 В активной разработке
+[@Dianana101](https://github.com/Dianana101) - Full-stack developer
+
+## 🙏 Acknowledgments
+
+- [Instagram Content Publishing API](https://developers.facebook.com/docs/instagram-api) - Meta Platform
+- [Supabase](https://supabase.com/) - Database & Backend-as-a-Service
+- [React](https://react.dev/) - UI Framework
+- [Perplexity AI](https://www.perplexity.ai/) - Text Generation
+- [Hugging Face](https://huggingface.co/) - Image Generation Models
